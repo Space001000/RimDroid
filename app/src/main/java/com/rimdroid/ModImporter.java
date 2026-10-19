@@ -57,7 +57,9 @@ public final class ModImporter {
                     if (!roots.contains(prefix)) roots.add(prefix);
                 }
             }
-            // Zips inside the zip that are not part of a mod found above (a mod may ship its own).
+            // Zips inside the zip that are not part of a mod found above: a mod may ship its own, like a
+            // 1.7 mod's Assets.zip. A mod at the zip root ("" prefix) owns every zip in it; 0.3.0v2 took
+            // that Assets.zip for a mod of its own and reported the install as failed (2026-10-19).
             List<String> innerZips = new ArrayList<>();
             if (openInnerZips) {
                 Enumeration<? extends ZipEntry> ez = zf.entries();
@@ -66,7 +68,7 @@ public final class ModImporter {
                     String name = ze.getName().replace('\\', '/');
                     if (ze.isDirectory() || !name.toLowerCase().endsWith(".zip")) continue;
                     boolean inMod = false;
-                    for (String root : roots) if (name.startsWith(root) && !root.isEmpty()) inMod = true;
+                    for (String root : roots) if (name.startsWith(root)) inMod = true;
                     if (!inMod) innerZips.add(ze.getName());
                 }
             }
