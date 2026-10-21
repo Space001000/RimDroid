@@ -311,11 +311,16 @@ public final class TextureCache {
     /** Converting the game's own textures only pays where the GPU cannot take DXT/BC7 as they are
      *  (Mali, Xclipse, PowerVR); Adreno keeps the originals. Unknown counts as "convert". */
     public static synchronized boolean assetsWanted() {
+        return gpuBc() != 1;
+    }
+
+    /** Vulkan textureCompressionBC of the phone's GPU (1 yes, 0 no, -1 unknown), asked once per process. */
+    public static synchronized int gpuBc() {
         if (gpuBc == -2) {
             gpuBc = TextureEncoder.available() ? TextureEncoder.gpuSupportsBc() : -1;
             Log.i(TAG, "GPU BC texture support: " + gpuBc + (gpuBc == 1 ? " -> game assets stay as they are" : " -> game assets are converted"));
         }
-        return gpuBc != 1;
+        return gpuBc;
     }
 
     /** True when the converted copy is wanted and missing or made from other originals. */

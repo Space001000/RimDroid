@@ -173,6 +173,7 @@ public class ClrActivity extends Activity {
             // .NET's Android crypto goes through Java (JNI): its JNI_OnLoad must see the VM, which only
             // happens when Java loads it. Loaded by .NET alone it crashed on the first hash (null JavaVM).
             System.loadLibrary("System.Security.Cryptography.Native.Android");
+            DotnetEngine.setGpuBc(getIntent().getIntExtra(DotnetEngine.EXTRA_GPU_BC, -1));
             List<String[]> props = DotnetEngine.propertiesFor(this, gi);
             String[] keys = new String[props.size()], values = new String[props.size()];
             for (int i = 0; i < props.size(); i++) { keys[i] = props.get(i)[0]; values[i] = props.get(i)[1]; }

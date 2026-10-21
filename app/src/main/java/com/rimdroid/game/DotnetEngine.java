@@ -35,13 +35,25 @@ public final class DotnetEngine {
 
     private DotnetEngine() {}
 
+    /** Intent extra: the GPU's own BC support as the launcher asked it (TextureCache.gpuBc). */
+    public static final String EXTRA_GPU_BC = "gpu_bc";
+    private static int gpuBc = -1;
+
+    /** ClrActivity hands over the launcher's answer: the game process does not ask Vulkan itself
+     *  before the game, as libvulkan.so there is the wrapper that reports BC when converting. */
+    public static void setGpuBc(int value) { gpuBc = value; }
+
     /**
      * The textures go through BC -> ETC2/EAC re-encoding (libvulkan.so, "BC on GPUs without it"): on
-     * GPUs without BC textures (Mali and Immortalis, PowerVR), or for a test on any phone with the file
-     * rd_no_bc in the game folder. The engine's GPU texture encoder is turned off with it.
+     * GPUs without BC textures, or for a test on any phone with the file rd_no_bc in the game folder.
+     * The engine's GPU texture encoder is turned off with it. Decided by the driver's answer: an
+     * Adreno 650 on a 2021 driver has no BC either, and with only Mali/Immortalis/PowerVR named here
+     * its encoder stayed on and items drew empty (2026-10-21); the names are the fallback.
      */
     public static boolean bcConversion(GameInstance gi) {
         if (new File(gi.getGamePath(), "rd_no_bc").isFile()) return true;
+        if (gpuBc == 0) return true;
+        if (gpuBc == 1) return false;
         String renderer = com.rimdroid.GpuInfo.query().renderer;
         if (renderer == null) return false;
         String r = renderer.toLowerCase(Locale.ROOT);
@@ -343,6 +355,7 @@ public final class DotnetEngine {
     public static Intent launchIntent(Context context, GameInstance gi) {
         Intent i = new Intent(context, com.rimdroid.ClrActivity.class);
         i.putExtra(com.rimdroid.ClrActivity.EXTRA_INSTANCE, gi.getName());
+        i.putExtra(EXTRA_GPU_BC, TextureCache.gpuBc());
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return i;
     }
