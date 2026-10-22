@@ -175,9 +175,9 @@ target_link_libraries(imgui_freetype imgui)
 add_library(steam_api64_stub SHARED steam_stub/steam_api64_stub.c)
 set_target_properties(steam_api64_stub PROPERTIES OUTPUT_NAME "steam_api64")
 
-# libslang.so — answers Slang's build tag so RimWorld 1.7 finds its prebuilt shader pack.
-add_library(slang_stub SHARED slang_stub/slang_stub.c)
-set_target_properties(slang_stub PROPERTIES OUTPUT_NAME "slang")
+# libslang.so is the real Slang 2026.19 (the game's tag) built for Android arm64, prebuilt in
+# jniLibs (2026-10-21): RimWorld 1.7 compiles mod shaders at runtime with it (IsoRim, MineSight).
+# How to rebuild it: docs/slang_android.md. slang_stub/ (build tag only) is no longer built.
 
 # With BC re-encoded to ETC2/EAC for GPUs without BC (bctranscode.cpp: bcdec + etcpak, the same
 # encoders as librimdroidtex, compiled in here: that library links the system libvulkan, this one
