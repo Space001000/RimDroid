@@ -67,6 +67,7 @@ public class ClrActivity extends Activity {
         System.loadLibrary("glfw");
         String instanceName = getIntent().getStringExtra(EXTRA_INSTANCE);
         InstanceSettings settings = instanceName != null ? new InstanceSettings(instanceName) : null;
+        dragPan = settings == null || settings.isDragPan();
         float refresh = useFastestRefreshRate(settings != null ? settings.getFpsCap() : 0);
         surface = new android.view.SurfaceView(this);
         // The instance's render size (Settings: render scale or a black-margin preset), as on the 1.6
@@ -410,8 +411,11 @@ public class ClrActivity extends Activity {
     }
 
     /**
-     * One finger is the mouse. A tap is a left click; a finger that moves drags with the left button
-     * held (box selection, dragging sliders); a finger held still is a right click (orders menu).
+     * One finger is the mouse. A tap is a left click; a finger held still is a right click (orders
+     * menu). A finger that moves pans the map with the middle button held, as RimWorld does with a
+     * mouse, so the map follows the finger one to one (Settings → "Drag the map to pan", on by
+     * default; 1.7 had no finger panning at all, 2026-10-22); with that setting off it drags with
+     * the left button held (box selection, sliders).
      * Two fingers pinch-zoom: RimWorld zooms with the mouse wheel, so the pinch turns into wheel
      * steps, with the cursor between the fingers. The left button goes down only once the finger
      * moves or lifts, so a second finger landing first makes a clean pinch with no click.
@@ -419,10 +423,14 @@ public class ClrActivity extends Activity {
      * trackpad) stays where it was, as on the other engines: players who aim with the stick lost the
      * pointer after every tap (1.6 native engine, 2026-10-13).
      */
+    /** Settings → "Drag the map to pan" (on by default), as on the 1.6 engines. */
+    private boolean dragPan = true;
+
     private final class TouchInput extends android.view.ScaleGestureDetector.SimpleOnScaleGestureListener {
         private static final long LONG_PRESS_MS = 350;   // as on the other engines
         private static final float STEP = 1.12f;   // pinch scale change per wheel step
         private boolean pending, pressed, gesture, rightClicked;
+        private int dragButton;   // the button a moving finger holds: 2 middle (pan) or 0 left
         private float downX, downY, scaleAcc = 1f;
         private final Runnable longPress = () -> {
             if (!pending || gesture) return;
@@ -440,10 +448,14 @@ public class ClrActivity extends Activity {
         private float gx(float x) { return surface.getWidth() > 0 && bufferW > 0 ? x * bufferW / surface.getWidth() : x; }
         private float gy(float y) { return surface.getHeight() > 0 && bufferH > 0 ? y * bufferH / surface.getHeight() : y; }
 
-        private void pressLeft() {
+        private void pressLeft() { press(0); }
+
+        private void press(int button) {
             pending = false;
             pressed = true;
-            glfwMouse(0, 1, gx(downX), gy(downY));
+            dragButton = button;
+            pointerTo(downX, downY);
+            glfwMouse(button, 1, gx(downX), gy(downY));
         }
 
         void onTouch(android.view.MotionEvent e) {
@@ -457,7 +469,7 @@ public class ClrActivity extends Activity {
                 case android.view.MotionEvent.ACTION_POINTER_DOWN:
                     ui.removeCallbacks(longPress);
                     pending = false;
-                    if (pressed) { glfwMouse(0, 0, gx(downX), gy(downY)); pressed = false; }
+                    if (pressed) { glfwMouse(dragButton, 0, gx(downX), gy(downY)); pressed = false; }
                     gesture = true;
                     scaleAcc = 1f;
                     break;
@@ -465,7 +477,7 @@ public class ClrActivity extends Activity {
                     if (gesture || rightClicked) break;
                     if (pending && Math.hypot(x - downX, y - downY) > 12 * getResources().getDisplayMetrics().density) {
                         ui.removeCallbacks(longPress);
-                        pressLeft();
+                        press(dragPan ? 2 : 0);
                     }
                     if (pressed) pointerTo(x, y);
                     break;
@@ -474,7 +486,7 @@ public class ClrActivity extends Activity {
                     ui.removeCallbacks(longPress);
                     if (!gesture && !rightClicked) {
                         if (pending) pressLeft();             // a tap
-                        if (pressed) glfwMouse(0, 0, gx(x), gy(y));
+                        if (pressed) glfwMouse(dragButton, 0, gx(x), gy(y));
                     }
                     pending = false; pressed = false; gesture = false; rightClicked = false;
                     break;
