@@ -11,6 +11,7 @@
 //  - WaylithClr.IsolatedLoadsResolveByName / LaxAssemblyBinding: a mod assembly loaded from bytes
 //    sits in a load context of its own and does not see other mods' assemblies; a reference is
 //    answered with an already loaded assembly of the same simple name, whatever its version.
+//  - WaylithClr.LaxPrivateFieldNames: see LaxFieldNames.cs (Harmony's field lookups).
 //  - MonoMod inside Harmony P/Invokes glibc's "libc" (and "libdl.so.2"); Android's libc is bionic.
 //    Those go to librdglibc.so, which translates the few calls whose ABI differs.
 using System;
@@ -198,6 +199,8 @@ internal static class StartupHook
         {
             Log(5, name + ": cannot route libc: " + e.Message);
         }
+        // WaylithClr.LaxPrivateFieldNames: Harmony finds framework fields by their Mono names too.
+        if (name == "0Harmony") RimDroidLaxFieldNames.Install(a, Log);
     }
 
     // Camera+ draws its colonist markers with shaders from its own Unity asset bundle, generated on the
