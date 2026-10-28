@@ -72,6 +72,11 @@ typedef struct {
 typedef struct { int dummy; void* user; } Monitor;
 
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
+// glfwSetCursorPos -> Java (see there). Its own lock, so a call from inside an input callback can't
+// meet the event queue's.
+static pthread_mutex_t g_warp_lock = PTHREAD_MUTEX_INITIALIZER;
+static double g_warpX, g_warpY;
+static int g_warpPending;
 static pthread_cond_t g_surface_cond = PTHREAD_COND_INITIALIZER;
 static ANativeWindow* g_native;          // the SurfaceView's surface, set from Java
 static Window* g_window;                 // the one window
@@ -107,6 +112,18 @@ static double now_seconds(void) {
 }
 
 // ===================================================================== JNI (ClrActivity)
+
+// The last glfwSetCursorPos since the previous call, in the game's pixels, into out[0..1]; false if none.
+JNIEXPORT jboolean JNICALL Java_com_rimdroid_ClrActivity_glfwTakeCursorWarp(JNIEnv* env, jclass c, jfloatArray out) {
+    (void)c;
+    float xy[2];
+    int got = 0;
+    pthread_mutex_lock(&g_warp_lock);
+    if (g_warpPending) { xy[0] = (float)g_warpX; xy[1] = (float)g_warpY; g_warpPending = 0; got = 1; }
+    pthread_mutex_unlock(&g_warp_lock);
+    if (got) (*env)->SetFloatArrayRegion(env, out, 0, 2, xy);
+    return got ? JNI_TRUE : JNI_FALSE;
+}
 
 JNIEXPORT void JNICALL Java_com_rimdroid_ClrActivity_glfwSurface(JNIEnv* env, jclass c, jobject surface, jint w, jint h) {
     (void)c;
@@ -376,7 +393,16 @@ API int glfwGetKeyScancode(int key) { return key; }
 API int glfwGetKey(void* w, int key) { Window* win = w; return win && key >= 0 && key <= GLFW_KEY_LAST ? win->keys[key] : 0; }
 API int glfwGetMouseButton(void* w, int b) { Window* win = w; return win && b >= 0 && b <= GLFW_MOUSE_BUTTON_LAST ? win->buttons[b] : 0; }
 API void glfwGetCursorPos(void* w, double* x, double* y) { Window* win = w; if (x) *x = win ? win->cursorX : 0; if (y) *y = win ? win->cursorY : 0; }
-API void glfwSetCursorPos(void* w, double x, double y) { Window* win = w; if (win) { win->cursorX = x; win->cursorY = y; } }
+// A game or mod moving the pointer, as desktop GLFW does: kept until Java takes it on its next frame
+// (ClrActivity.glfwTakeCursorWarp) and moves the drawn cursor there.
+API void glfwSetCursorPos(void* w, double x, double y) {
+    Window* win = w;
+    if (!win) return;
+    win->cursorX = x; win->cursorY = y;
+    pthread_mutex_lock(&g_warp_lock);
+    g_warpX = x; g_warpY = y; g_warpPending = 1;
+    pthread_mutex_unlock(&g_warp_lock);
+}
 
 static int g_cursor_dummy;
 API void* glfwCreateCursor(const void* img, int x, int y) { (void)img; (void)x; (void)y; return &g_cursor_dummy; }

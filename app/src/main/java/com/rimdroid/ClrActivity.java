@@ -49,6 +49,8 @@ public class ClrActivity extends Activity {
     static native void glfwDisplayMode(int width, int height, int refreshHz);
     /** Frames presented so far (counted at vkQueuePresentKHR by the libvulkan.so wrapper). */
     static native long frameCount();
+    /** Where the game last moved the pointer itself (glfwSetCursorPos), in game pixels; false if it didn't. */
+    static native boolean glfwTakeCursorWarp(float[] out);
 
     // In-game overlay, the same global setting as 1.5/1.6 (Settings → Frame rate).
     private ClrInput input;   // on-screen controls, soft and physical keyboard
@@ -385,11 +387,24 @@ public class ClrActivity extends Activity {
         }
     };
 
+    /**
+     * When the game moves the pointer itself (a mod calling glfwSetCursorPos, as on desktop), the drawn
+     * cursor follows on the next frame, so the stick and the next tap carry on from there.
+     */
+    private final float[] cursorWarpPos = new float[2];
+    private final android.view.Choreographer.FrameCallback cursorWarp = new android.view.Choreographer.FrameCallback() {
+        @Override public void doFrame(long frameTimeNanos) {
+            if (input != null && glfwTakeCursorWarp(cursorWarpPos)) input.controls.setCursorFromGame(cursorWarpPos[0], cursorWarpPos[1]);
+            android.view.Choreographer.getInstance().postFrameCallback(this);
+        }
+    };
+
     @Override protected void onResume() {
         super.onResume();
         if (fpsText != null) { fpsLastTimeMs = 0; ui.removeCallbacks(fpsTextTick); ui.postDelayed(fpsTextTick, 1000); }
         if (perfHandler != null) { perfHandler.removeCallbacks(perfTick); perfHandler.post(perfTick); }
         if (gamepad != null) gamepad.start();
+        android.view.Choreographer.getInstance().postFrameCallback(cursorWarp);
         if (surface != null) surface.requestFocus();
         inputManager = (android.hardware.input.InputManager) getSystemService(INPUT_SERVICE);
         if (inputManager != null) inputManager.registerInputDeviceListener(padListener, null);
@@ -399,6 +414,7 @@ public class ClrActivity extends Activity {
     @Override protected void onPause() {
         super.onPause();
         if (gamepad != null) gamepad.stop();
+        android.view.Choreographer.getInstance().removeFrameCallback(cursorWarp);
         if (inputManager != null) inputManager.unregisterInputDeviceListener(padListener);
         if (input != null) input.controls.resetAll();   // nothing stays held while away
         ui.removeCallbacks(fpsTextTick);
