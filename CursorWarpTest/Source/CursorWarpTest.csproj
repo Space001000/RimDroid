@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compiled against RimWorld 1.7's own assemblies (the game's .NET 10 framework DLLs). -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>CursorWarpTest</AssemblyName>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoWarn>CS1701;CS1702;CS1705;MSB3277;CA1416</NoWarn>
+    <GameDir Condition="'$(GameDir)' == ''">C:/Users/timsi/RimDS/gamefiles</GameDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="$(GameDir)/*.dll" Exclude="$(GameDir)/System.Private.Xml*.dll;$(GameDir)/System.Private.DataContractSerialization.dll;$(GameDir)/System.Private.Reflection*.dll;$(GameDir)/mscorlib.dll;$(GameDir)/netstandard.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

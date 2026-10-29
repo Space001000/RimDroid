@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <packageId>space000.cursorwarptest</packageId>
+  <name>Cursor warp test</name>
+  <author>Space000</author>
+  <supportedVersions>
+    <li>1.7</li>
+  </supportedVersions>
+  <description>Test for RimDroid: Options, Mod settings, "Cursor warp test" moves the pointer the way a mod can on desktop RimWorld 1.7 (glfwSetCursorPos), 2 seconds after you press a button. No Harmony needed. Source in Source/.</description>
+</ModMetaData>
